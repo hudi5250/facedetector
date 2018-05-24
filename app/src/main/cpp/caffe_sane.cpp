@@ -465,6 +465,12 @@ void* caffeLoadNetwork(const void* data_init, int size_init,const void* data_pre
             //std::cout << "Conv engine set:" << predict_net.op(i).engine() << std::endl;
 
         }
+        if("ConvTranspose"==predict_net.op(i).type()){
+            predict_net.mutable_op(i)->set_engine("BLOCK");
+            //std::cout << "Conv engine used:" << predict_net.op(i).has_engine() << std::endl;
+            //std::cout << "Conv engine set:" << predict_net.op(i).engine() << std::endl;
+
+        }
     }
 */
     pcaffe_ctx->predictor = new caffe2::Predictor(init_net, predict_net);

@@ -310,7 +310,7 @@ public class ClassifyCamera extends AppCompatActivity {
                                 //
                                 //
                                 if(detectresult[0]!=-1)
-                                    tv.setText(predictedClass+";"+show_time/1000000+";"+detectresult[4*detectresult[0]+1]/1000+";p:"+detectresult[4*detectresult[0]+2]+";r:"+detectresult[4*detectresult[0]+3]);
+                                    tv.setText(predictedClass+";"+show_time/1000000+";"+detectresult[4*detectresult[0]+1]/1000+";p:"+detectresult[4*detectresult[0]+2]+";r:"+detectresult[4*detectresult[0]+3]+"; "+(detectresult[4*detectresult[0]+4]-detectresult[4*detectresult[0]+1]/1000));
                                 else
                                     tv.setText(predictedClass);
                                 processing = false;

@@ -23,8 +23,10 @@ static FaceInception::CascadeCNN* MTCNN;
 
 int global_p=0;
 int global_r=0;
+float global_time=0;
 static char raw_data[MAX_DATA_SIZE];
 static float input_data[MAX_DATA_SIZE];
+
 static caffe2::Workspace ws;
 static int flag=0;
 // A function to load the NetDefs from protobufs.
@@ -59,7 +61,8 @@ Java_facebook_f8demo_ClassifyCamera_initCaffe2(
 float avg_fps = 0.0;
 float total_fps = 0.0;
 int iters_fps = 10;
-
+int detection_num=0;
+vector<Rect2d> tmp_box;
 extern "C"
 JNIEXPORT jintArray JNICALL
 Java_facebook_f8demo_ClassifyCamera_classificationFromCaffe2(
@@ -94,7 +97,7 @@ Java_facebook_f8demo_ClassifyCamera_classificationFromCaffe2(
     transpose(rbg,rbg);
     flip(rbg,rbg,-1);
     //bool res=imwrite("/mnt/sdcard/test1.jpg",rbg);
-    float scalew=48.0f/w;
+    float scalew=32.0f/w;
     float scaleh=32.0f/h;
     float scale;
     if(scalew>scaleh){
@@ -103,11 +106,28 @@ Java_facebook_f8demo_ClassifyCamera_classificationFromCaffe2(
     else{
         scale=scaleh;
     }
-
+    std::vector<std::pair<Rect2d, float>> detectresult;
     vector<vector<Point2d>> points;
     std::chrono::time_point<std::chrono::system_clock> p0 = std::chrono::system_clock::now();
-    auto detectresult=MTCNN->GetDetection(rbg,scale, { 0.6, 0.7, 0.7 }, true, 0.7, true, points);
+    if(detection_num==0) {
+        detectresult = MTCNN->GetDetection(rbg, scale, {0.6, 0.7, 0.7}, true, 0.7, true,
+                                                points);
+    }
+    else{
+        if(tmp_box.size()!=0){
+            vector<Mat> tmp_image;
+            tmp_image.push_back(FaceInception::cropImage(rbg, tmp_box[0], Size(48, 48), INTER_LINEAR, BORDER_CONSTANT, Scalar(0)));
+            //imshow("tmptmp", tmp_image[0]);
+            //waitKey(0);
+            detectresult = MTCNN->GetTrace1(tmp_image, tmp_box, 0.1, { 0.6,0.7,0.7 }, true, 0.7, true);
+        }
+    }
     std::chrono::time_point<std::chrono::system_clock> p1 = std::chrono::system_clock::now();
+
+    detection_num++;
+    if(detection_num==10){
+        detection_num=0;
+    }
     if(detectresult.size()==0){
         jintArray jarr=env->NewIntArray(8);
         jint* resultarray=env->GetIntArrayElements(jarr,NULL);
@@ -115,7 +135,18 @@ Java_facebook_f8demo_ClassifyCamera_classificationFromCaffe2(
         env->ReleaseIntArrayElements(jarr, resultarray, 0);
         return jarr;
     }
-    jintArray jarr=env->NewIntArray(4*detectresult.size()+4);
+    tmp_box.clear();
+    auto tmp_rect = detectresult[0].first;
+    tmp_rect.x = tmp_rect.x - (tmp_rect.height - tmp_rect.width) / 2;
+    tmp_rect.x -= 0.1*tmp_rect.height;
+
+    tmp_rect.y -= 0.1*tmp_rect.height;
+
+
+    tmp_rect.height *= 1.2;
+    tmp_rect.width = tmp_rect.height;
+    tmp_box.push_back(tmp_rect);
+    jintArray jarr=env->NewIntArray(4*detectresult.size()+5);
     jint* resultarray=env->GetIntArrayElements(jarr,NULL);
     resultarray[0]=detectresult.size();
     for(int i=0;i<detectresult.size();i++) {
@@ -129,6 +160,8 @@ Java_facebook_f8demo_ClassifyCamera_classificationFromCaffe2(
     resultarray[4*detectresult.size()+1] = (float) ((p1 - p0).count()) / 1000;
     resultarray[4*detectresult.size()+2]=global_p;
     resultarray[4*detectresult.size()+3]=global_r;
+    resultarray[4*detectresult.size()+4]=global_time;
+    global_time=0;
     env->ReleaseIntArrayElements(jarr, resultarray, 0);
     return jarr;
 }

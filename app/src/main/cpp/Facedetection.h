@@ -23,7 +23,7 @@
 
 
 
-
+extern float global_time;
 using namespace cv;
 using namespace std;
 const int g_batchsize = 500;
@@ -97,8 +97,10 @@ namespace FaceInception {
                 int inputnet12[4] = { 1,3,small_image.cols,small_image.rows };
 
 
-
+                std::chrono::time_point<std::chrono::system_clock> p1 = std::chrono::system_clock::now();
                 auto tmp_output_data = caffeRunNetwork(Network_net12, tmp_data.data(), inputnet12, 4);
+                std::chrono::time_point<std::chrono::system_clock> p2 = std::chrono::system_clock::now();
+                global_time+=(float)std::chrono::duration_cast<std::chrono::microseconds>(p2 - p1).count() / 1000;
                 //assert(output_size == 2);
 
                 auto net12_result = bounding_box_reg(tmp_output_data[0], tmp_output_data[1], inputnet12);
@@ -192,8 +194,10 @@ namespace FaceInception {
                 //for (int jf = 0; jf < 10000; jf++) {
                 //Network_net24 = loadNet("F:\\det2_init.pb", "F:\\det2_predict.pb", net24_input_size, 4);
 
-
+                std::chrono::time_point<std::chrono::system_clock> p1 = std::chrono::system_clock::now();
                 auto tmp_output_data = caffeRunNetwork(Network_net24, net24_input_data.data(), net24_input_size, 4);
+                std::chrono::time_point<std::chrono::system_clock> p2 = std::chrono::system_clock::now();
+                global_time+=(float)std::chrono::duration_cast<std::chrono::microseconds>(p2 - p1).count() / 1000;
                 //assert(output_size == 2);
                 //caffeDestroyNetwork(Network_net24);
                 //}
@@ -272,8 +276,10 @@ namespace FaceInception {
                 auto net48_input_data = image_preprocess(net_input);
 
 
-
+                std::chrono::time_point<std::chrono::system_clock> p1 = std::chrono::system_clock::now();
                 auto tmp_output_data = caffeRunNetwork(Network_net48, net48_input_data.data(), net48_input_size, 4);
+                std::chrono::time_point<std::chrono::system_clock> p2 = std::chrono::system_clock::now();
+                global_time+=(float)std::chrono::duration_cast<std::chrono::microseconds>(p2 - p1).count() / 1000;
                 //assert(output_size == 2);
 
                 net48_output_rate = tmp_output_data[0];
@@ -346,8 +352,8 @@ namespace FaceInception {
             cout << "proposal: " << proposal.size() << endl;
             global_p=proposal.size();
             //hd
-            if(proposal.size()>3){
-                proposal=vector<pair<Rect2d,float>>(proposal.begin(),proposal.begin()+3);
+            if(proposal.size()>5){
+                //proposal=vector<pair<Rect2d,float>>(proposal.begin(),proposal.begin()+5);
             }
             if (proposal.size() == 0) return vector<pair<Rect2d, float>>();
             vector<Mat> sub_images;
@@ -378,7 +384,7 @@ namespace FaceInception {
             global_r=refined.size();
             //hd
             if(refined.size()>1){
-                refined=vector<pair<Rect2d,float>>(refined.begin(),refined.begin()+1);
+                //refined=vector<pair<Rect2d,float>>(refined.begin(),refined.begin()+1);
             }
             if (refined.size() == 0) return vector<pair<Rect2d, float>>();
             //Mat image_show = input_image.clone();
@@ -416,7 +422,18 @@ namespace FaceInception {
             return final;
         }
 
-
+        vector<pair<Rect2d, float>> GetTrace1( vector<Mat> sub_images, vector<Rect2d> image_boxes, double start_scale = 1, vector<double> confidence_threshold = { 0.6, 0.7,0.7 },
+                                               bool do_nms = false, double nms_threshold = 0.7,
+                                               bool output_points = false) {
+            for (auto &i : sub_images) {
+                Mat tmp = i;
+                resize(tmp, tmp, Size(48, 48), 0, 0, INTER_LINEAR);
+                i = tmp;
+            }
+            vector<vector<Point2d>> points = vector<vector<Point2d>>();
+            auto final = getNet48Final(sub_images, image_boxes, 0.1, do_nms, nms_threshold, 500, output_points, points);
+            return final;
+        }
 
         void *loadNet(const string& net, const string& model) {
             AAsset* asset1 = AAssetManager_open(mgr, net.c_str(), AASSET_MODE_BUFFER);
